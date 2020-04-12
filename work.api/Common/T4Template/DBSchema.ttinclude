@@ -1,0 +1,420 @@
+﻿<#@ assembly name="System.Core"#>
+<#@ assembly name="System.Data" #>
+<#@ assembly name="System.xml" #>
+<#@ assembly name="$(SolutionDir)Common\T4Template\MySql.Data.dll" #>
+<#@ assembly name="$(SolutionDir)Common\T4Template\System.Xml.Linq.dll" #>
+<#@ import namespace="System"#>
+<#@ import namespace="System.Collections.Generic"#>
+<#@ import namespace="System.Data"#>
+<#@ import namespace="System.Data.SqlClient"#>
+<#@ import namespace="MySql.Data.MySqlClient"#>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Xml.Linq" #>
+<#+ 
+#region Code
+    public class MySqlSchema 
+    {
+        public string ConnectionString = "";
+       
+        public MySqlConnection conn;
+       
+        public string NamespaceStr = string.Empty;        
+		public void SetNamespace(string namespaceStr)
+        {
+            NamespaceStr = namespaceStr;
+        }
+
+        public string Suffix = string.Empty;        
+		public void SetSuffix(string suffix)
+        {
+            Suffix = suffix;
+        }
+
+        public string TableName = string.Empty;        
+		public void SetTableName(string tableName)
+        {
+            TableName = tableName;
+        }
+
+        public string Data = string.Empty;        
+		public void SetData(string data)
+        {
+            Data = data;
+        }
+        public string Prefix = string.Empty;        
+		public void SetPrefix(string data)
+        {
+            Prefix = data;
+        }
+
+		public List<Entity> GetEntities(string tableName)
+        {
+			
+            var dataList = new List<DataInfo>()
+			{
+                new DataInfo()
+				{
+					Database="work",
+					ConnectionString = "server=121.43.233.78;port=3306;database=work;User Name=root;Password=Work@123456;charset=utf8;persist security info=true;Connect Timeout=30;"
+				},
+
+			};
+			
+            var ConnectionString = dataList.Where(x => x.Database == Data).FirstOrDefault().ConnectionString;
+
+            var list = new List<Entity>();
+            var conn = new MySqlConnection(ConnectionString);
+            try
+            {
+                conn.Open();
+                var cmd = string.Format(@"SELECT `TABLE_SCHEMA`
+												,`TABLE_NAME`
+												,`COLUMN_NAME`
+												,`DATA_TYPE`
+												,`COLUMN_COMMENT`
+												,COLUMN_KEY
+                                                FROM `information_schema`.`COLUMNS`
+                                                WHERE `information_schema`.`COLUMNS`.`TABLE_SCHEMA` IN ('{0}')  and `information_schema`.`COLUMNS`.`TABLE_NAME`='{1}'", Data,tableName);
+                using (var reader = MySqlHelper.ExecuteReader(conn, cmd))
+                {
+                    while (reader.Read())
+                    {
+                        var db = reader["TABLE_SCHEMA"].ToString();
+                        var table = reader["TABLE_NAME"].ToString()+Suffix;
+                        var column = reader["COLUMN_NAME"].ToString();
+                        var type =  reader["DATA_TYPE"].ToString();
+                        var comment = reader["COLUMN_COMMENT"].ToString();
+                        var isIdentity = reader["COLUMN_KEY"].ToString().Equals("PRI",StringComparison.CurrentCultureIgnoreCase);
+                        var entity = list.FirstOrDefault(x => x.EntityName == table);
+                        if(entity == null)
+                        {
+                            entity = new Entity(table);
+                            entity.Fields.Add(new Field
+                            {
+                                Name = column,
+                                Type = GetCLRType(type),
+                                Comment = comment,
+								IsIdentity=isIdentity
+                            });
+                           
+                            list.Add(entity);
+                        }
+                        else
+                        {
+                            entity.Fields.Add(new Field
+                            {
+                                Name = column,
+                                Type = GetCLRType(type),
+                                Comment = comment
+                            });
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                conn.Close();
+            }
+
+            return list;
+        }
+
+	public string Reader()
+        {
+			var entities = GetEntities(TableName);
+            var stringBuilder = new StringBuilder();
+			foreach(Entity entity in entities)
+			{
+				var identityType="long";
+				for(int i = 0; i < entity.Fields.Count; i++)
+				{
+				 	if(entity.Fields[i].IsIdentity)
+					{
+						identityType=entity.Fields[i].Type;
+						break;
+					}
+				}
+				stringBuilder.AppendLine("using System;");
+				stringBuilder.AppendLine("using Chloe.Annotations;");
+				stringBuilder.AppendLine("namespace " + NamespaceStr);
+				stringBuilder.AppendLine("{");
+				stringBuilder.AppendLine("    /// <summary>");
+				stringBuilder.AppendLine("    ///" + entity.EntityName);
+				stringBuilder.AppendLine("    /// </summary>");
+				stringBuilder.AppendLine( string.Format("    [TableAttribute(\"{0}\")]",TableName));
+				stringBuilder.AppendLine( string.Format("    public partial class {0}Entity ",TableName));
+				stringBuilder.AppendLine("    {");
+				stringBuilder.AppendLine( string.Format("        public {0}Entity()",TableName));
+				stringBuilder.AppendLine("        {");
+				for(int i = 0; i < entity.Fields.Count; i++)
+				{
+					var name=entity.Fields[i].Name;
+					var prefixLength=Prefix.Length;
+					var tmpName=name.Substring(0,prefixLength);
+					if(tmpName.Equals(Prefix,StringComparison.CurrentCultureIgnoreCase))
+					{
+						name=name.Substring(prefixLength);
+					}
+
+					if(entity.Fields[i].Type=="string")
+					{
+						stringBuilder.AppendLine(string.Format("            {0} = string.Empty;",name));
+					}
+					if(entity.Fields[i].Type=="DateTime")
+					{
+						stringBuilder.AppendLine(string.Format("            {0} =  new DateTime(1970,1,1);",name));
+					}
+				}
+				stringBuilder.AppendLine("        }");
+
+				 for(int i = 0; i < entity.Fields.Count; i++)
+				 {
+					var name=entity.Fields[i].Name;
+					var prefixLength=Prefix.Length;
+					var tmpName=name.Substring(0,prefixLength);
+					if(tmpName.Equals(Prefix,StringComparison.CurrentCultureIgnoreCase))
+					{
+						name=name.Substring(prefixLength);
+					}
+
+					stringBuilder.AppendLine("        /// <summary>");
+					stringBuilder.AppendLine("        ///" +  entity.Fields[i].Comment);
+					stringBuilder.AppendLine("        /// </summary>");
+					if(entity.Fields[i].IsIdentity)
+					{
+						stringBuilder.AppendLine(string.Format("        [ColumnAttribute(\"{0}\",IsPrimaryKey = true)]",entity.Fields[i].Name));
+					}
+					else
+					{
+						stringBuilder.AppendLine( string.Format("        [ColumnAttribute(\"{0}\")]  ",entity.Fields[i].Name));
+					}
+
+					stringBuilder.Append( string.Format("        public {0} {1} ",entity.Fields[i].Type ,name));
+					stringBuilder.AppendLine("{ get; set; }");
+				}
+				
+				stringBuilder.AppendLine("    }");
+				stringBuilder.Append("}");
+
+			}
+
+
+			return stringBuilder.ToString();
+		
+		}
+		
+
+        public string GetCLRType(string dbType)
+        {
+            switch(dbType)
+            {
+                case "bigint":
+                    return "long";
+                case "tinyint":
+                case "smallint":
+                case "mediumint":
+                case "int":
+                case "integer":
+                    return "int";
+                case "double":
+                    return "double";
+                case "float":
+                    return "float";
+                case "decimal":
+                    return "decimal";
+                case "numeric":
+                case "real":
+                    return "decimal";
+                case "bit":
+                    return "bool";
+                case "date":
+                case "time":
+                case "year":
+                case "datetime":
+                case "timestamp":
+                    return "DateTime";
+                case "tinyblob":
+                case "blob":
+                case "mediumblob":
+                case "longblog":
+                case "binary":
+                case "varbinary":
+                    return "byte[]";
+                case "char":
+                case "varchar":                   
+                case "tinytext":
+                case "text":
+                case "mediumtext":
+                case "longtext":
+                    return "string";
+                case "point":
+                case "linestring":
+                case "polygon":
+                case "geometry":
+                case "multipoint":
+                case "multilinestring":
+                case "multipolygon":
+                case "geometrycollection":
+                case "enum":
+                case "set":
+                default:
+                    return dbType;
+            }
+        }
+
+
+
+
+        public void Dispose()
+        {
+            if (conn != null)
+                conn.Close();
+        }
+    }
+
+    public class Table
+    {
+        public Table(DataTable t)
+        {
+            this.PKs = this.GetPKList(t);
+            this.Columns = this.GetColumnList(t);
+            this.ColumnTypeNames = this.SetColumnNames();
+        }
+
+        public List<Column> PKs;
+
+        public List<Column> Columns;
+
+        public string ColumnTypeNames;
+        public List<Column> GetPKList(DataTable dt)
+        {
+            List<Column> list = new List<Column>();
+            Column c = null;
+            if (dt.PrimaryKey.Length > 0)
+            {
+                list = new List<Column>();
+                foreach (DataColumn dc in dt.PrimaryKey)
+                {
+                    c = new Column(dc);
+                    list.Add(c);
+                }
+            }
+            return list;
+        }
+
+        private List<Column> GetColumnList(DataTable dt)
+        {
+            List<Column> list = new List<Column>();
+            Column c = null;
+            foreach (DataColumn dc in dt.Columns)
+            {
+                c = new Column(dc);
+                list.Add(c);
+            }
+            return list;
+        }
+
+        private string SetColumnNames()
+        {
+            List<string> list = new List<string>();
+            foreach (Column c in this.Columns)
+            {
+                list.Add(string.Format("{0} {1}", c.TypeName, c.LowerColumnName));
+            }
+            return string.Join(",", list.ToArray());
+        }
+    }
+
+    public class Column
+    {
+        DataColumn columnBase;
+
+        public Column(DataColumn columnBase)
+        {
+            this.columnBase = columnBase;
+        }
+
+        public string ColumnName { get { return this.columnBase.ColumnName; } }
+
+        public string MaxLength { get { return this.columnBase.MaxLength.ToString(); } }
+
+        public string TypeName { 
+            get 
+            {
+                string result = string.Empty;
+                if (this.columnBase.DataType.Name == "Guid")//for mysql,因为对于MYSQL如果是CHAR(36),类型自动为Guid
+                    result = "String";
+                else
+                    result = this.columnBase.DataType.Name;
+                return result; 
+            } 
+        }
+
+        public bool AllowDBNull { get { return this.columnBase.AllowDBNull; } }
+
+        public string UpColumnName
+        {
+            get
+            {
+                //return string.Format("{0}{1}", this.ColumnName[0].ToString().ToUpper(), this.ColumnName.Substring(1));
+				return this.ColumnName;
+            }
+        }
+
+        public string LowerColumnName
+        {
+            get
+            {
+                //return string.Format("{0}{1}", this.ColumnName[0].ToString().ToLower(), this.ColumnName.Substring(1));
+				return this.ColumnName;
+            }
+        }
+    }
+
+    public class GeneratorHelper
+    {
+        public static readonly string StringType = "String";
+        public static readonly string DateTimeType = "DateTime";
+        public static string GetQuesMarkByType(string typeName)
+        {
+            string result = typeName;
+            if (typeName == DateTimeType)
+            {
+                result += "?";
+            }
+            return result;
+        }
+    }
+
+	public class Entity
+    {
+        public Entity()
+        {
+            this.Fields = new List<Field>();
+        }
+
+        public Entity(string name)
+            : this()
+        {
+            this.EntityName = name;
+        }
+
+        public string EntityName { get;set; }
+        public List<Field> Fields { get;set; }
+    }
+
+    public class Field
+    {
+        public bool IsIdentity { get;set; }
+        public string Name { get;set; }
+        public string Type { get;set; }
+        public string Comment { get;set; }
+    }
+
+	public class DataInfo
+    {
+        public string ConnectionString { get; set; }
+        public string Database { get; set; }
+    }
+    #endregion
+#>

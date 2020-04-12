@@ -1,0 +1,17 @@
+D:\Project\work.api\Repository\bin\Debug\netcoreapp3.1\Repository.deps.json
+D:\Project\work.api\Repository\bin\Debug\netcoreapp3.1\Repository.dll
+D:\Project\work.api\Repository\bin\Debug\netcoreapp3.1\Repository.pdb
+D:\Project\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.csprojAssemblyReference.cache
+D:\Project\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.csproj.CoreCompileInputs.cache
+D:\Project\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.AssemblyInfoInputs.cache
+D:\Project\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.AssemblyInfo.cs
+D:\Project\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.dll
+D:\Project\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.pdb
+D:\项目\小程序\work.api\Repository\bin\Debug\netcoreapp3.1\Repository.deps.json
+D:\项目\小程序\work.api\Repository\bin\Debug\netcoreapp3.1\Repository.dll
+D:\项目\小程序\work.api\Repository\bin\Debug\netcoreapp3.1\Repository.pdb
+D:\项目\小程序\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.csproj.CoreCompileInputs.cache
+D:\项目\小程序\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.AssemblyInfoInputs.cache
+D:\项目\小程序\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.AssemblyInfo.cs
+D:\项目\小程序\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.dll
+D:\项目\小程序\work.api\Repository\obj\Debug\netcoreapp3.1\Repository.pdb

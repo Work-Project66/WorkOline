@@ -1,0 +1,14 @@
+﻿<#@ output extension=".cs" #>
+<#@ assembly name="System.Core"#>
+<#@ import namespace="System"#>
+<#@ include file="$(SolutionDir)\Common\T4Template\DBSchema.ttinclude"#>
+<#@ include file="$(SolutionDir)\Common\T4Template\MySqlSchema.ttinclude"#>
+<#
+    MySqlSchema dbSchema=new MySqlSchema();
+	dbSchema.SetData("work");//数据库
+	dbSchema.SetTableName("user");//表名
+	dbSchema.SetNamespace("work.api.Entity.TableEntity");//空间名称
+	dbSchema.SetSuffix("Entity");//生成实体后缀
+	dbSchema.SetPrefix("");//生成属性要忽略的前缀
+	this.Write(dbSchema.Reader());
+#>

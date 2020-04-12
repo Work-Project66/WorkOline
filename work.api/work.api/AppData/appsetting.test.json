@@ -1,0 +1,7 @@
+{
+  "ConnectionString": "",
+  "RedisConnectionStrings": { //redis¡¨Ω”
+    "Connection": "121.43.233.78:6379,password=Work@123456,abortConnect=false",
+    "InstanceName": "root"
+  }
+}
